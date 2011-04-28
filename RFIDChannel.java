@@ -20,7 +20,11 @@ public class RFIDChannel {
 	private double errorRate;
 	
 	public RFIDChannel(RFIDTag[] tagArray, double errorRate){
-		tags = tagArray;
+		System.out.println("rfid tag: "); 
+        for (RFIDTag t : tagArray)
+            System.out.println(t);
+        
+        tags = tagArray;
 		numBytes = 0;
 		generator = new Random();
 		this.errorRate = errorRate / 100;  //convert to decimal

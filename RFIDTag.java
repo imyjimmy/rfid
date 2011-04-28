@@ -14,6 +14,8 @@ public class RFIDTag {
 
 	//64 bit tag identifier
 	private byte[] tagEPC;
+    //16 bit random preId message
+    private byte[] preId;
 
 	//Insert other needed state here
 	private boolean beenInventoried;
@@ -23,6 +25,10 @@ public class RFIDTag {
 		//generate random unsigned 64 bit identifier for this Tag
 		tagEPC = new byte[8];
 		generator.nextBytes(tagEPC);
+        
+        //generate the pre-Id
+        preId = new byte[2];
+        generator.nextBytes(preId);
 
 		beenInventoried = false;
 		sentEPC = false;
@@ -48,7 +54,12 @@ public class RFIDTag {
 			Currently, the strawman protocol is implemented.
 			Replace with your own protocol.
 		*/
-
+        System.out.println("RFIDTag, Receiving message: ");
+        for (byte b : message) {
+            System.out.print(b);
+        }
+        System.out.println();
+        
 		assert(message != null);
 
 		if(Arrays.equals(message, RFIDChannel.GARBLE)){
@@ -62,20 +73,17 @@ public class RFIDTag {
 			byte flag = 0;
 			try {
 				flag = dataIn.readByte();
-			} catch (Exception e) {
+                if(flag == RFIDConstants.ACK && sentEPC){
+                    //we've been inventoried, don't respond anymore.
+                    beenInventoried = true;
+                } else if(flag == RFIDConstants.QUERY && !beenInventoried){
+                    byte bucketSizeByte = datain.readByte();
+                    int bucketSize = bucketSizeByte.intValue();
+                    System.out.println("Reading bucket size byte: " + bucketSize);
+                    return tagEPC;
+                }
+            } catch (Exception e) {
 				System.out.println("Error during read in Tag");
-			}
-
-			if(flag == RFIDConstants.ACK && sentEPC){
-				//we've been inventoried, don't respond anymore.
-				beenInventoried = true;
-			} else if(flag == RFIDConstants.QUERY && !beenInventoried){
-				//this is a query, roll the die to see if we reply
-				if(generator.nextInt(32) == 0){
-					//success, send out our EPC to be inventoried
-					sentEPC = true;
-					return tagEPC;
-				}
 			}
 		}
 
@@ -83,5 +91,14 @@ public class RFIDTag {
 		sentEPC = false;
 		return null;
 	}
-
+    
+    //debugging purposes
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        for (byte b : tagEPC) {
+            sb.append(b);
+        }
+        return sb.toString();
+    }
+        
 }

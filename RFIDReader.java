@@ -41,12 +41,20 @@ public class RFIDReader {
 
 			//create "query" frame
 			dataOut.writeByte(RFIDConstants.QUERY);
+            Integer bucketSize = RFIDConstants.getBucketSize();
+            dataOut.writeByte(bucketSize.byteValue());
+            
 			dataOut.flush();
 			query = bytesOut.toByteArray();
 			bytesOut.reset();
 
 			dataOut.close();
 			bytesOut.close();
+            System.out.println("Query byte array: ");
+            for (byte b : query) {
+                System.out.print(b);
+            }
+            System.out.print("\n");
 		} catch (Exception e){
 			System.out.println("Error in creation of reader frames!");
 		}
@@ -54,7 +62,7 @@ public class RFIDReader {
 
 	//This controls the behavoir of the Reader.
 	//The inventory method should run
-	//until the reader determines that it is unlikly
+	//until the reader determines that it is unlikely
 	//any other tags are uninventored, then return
 	//the currentInventory.
 	public List<byte[]> inventory() {
