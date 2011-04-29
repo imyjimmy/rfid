@@ -15,10 +15,15 @@ public class RFIDReader {
 
 	private List<byte[]> currentInventory;
 	private RFIDChannel channel;
+    private static final int BUCKET_SIZE = 4;
+    
+    private ByteArrayOutputStream bytesOut;
+    private DataOutputStream dataOut;
 
 	//frames used for the protocol
 	byte[] ack;
 	byte[] query;
+    byte[] requery;
 
 	public RFIDReader(RFIDChannel chan) {
 		currentInventory = new ArrayList<byte[]>();
@@ -29,38 +34,72 @@ public class RFIDReader {
 		//Output/Input streams in your implementation.
 		//They are offered here as one convenient option
 		//for encoding/decoding a byte array.
-		ByteArrayOutputStream bytesOut = new ByteArrayOutputStream();
-		DataOutputStream dataOut = new DataOutputStream(bytesOut);
+		bytesOut = new ByteArrayOutputStream();
+		dataOut = new DataOutputStream(bytesOut);
+        RFIDConstants.setBucketSize(BUCKET_SIZE);
+        createAck();
+        createQuery();
+	}
 
-		try{
-			//create "ack" frame
-			dataOut.writeByte(RFIDConstants.ACK);
-			dataOut.flush();
-			ack = bytesOut.toByteArray();
-			bytesOut.reset();
-
-			//create "query" frame
-			dataOut.writeByte(RFIDConstants.QUERY);
+    private void createAck() {
+        try{
+            //create "ack" frame
+            dataOut.writeByte(RFIDConstants.ACK);
+            dataOut.flush();
+            ack = bytesOut.toByteArray();
+            bytesOut.reset();
+        } catch (Exception e){
+            System.out.println("Error in creation of ACK");
+        }
+    }
+    
+    private void createQuery() {
+        try {
+            //create "query" frame
+            dataOut.writeByte(RFIDConstants.QUERY); 
             Integer bucketSize = RFIDConstants.getBucketSize();
             dataOut.writeByte(bucketSize.byteValue());
             
-			dataOut.flush();
-			query = bytesOut.toByteArray();
-			bytesOut.reset();
-
-			dataOut.close();
-			bytesOut.close();
+            dataOut.flush();
+            query = bytesOut.toByteArray();
+            bytesOut.reset();
+            
+            dataOut.close();
+            bytesOut.close();
             System.out.println("Query byte array: ");
             for (byte b : query) {
                 System.out.print(b);
             }
             System.out.print("\n");
-		} catch (Exception e){
-			System.out.println("Error in creation of reader frames!");
-		}
-	}
-
-	//This controls the behavoir of the Reader.
+        } catch (Exception e) {
+            System.out.println("Error creating QUERY.");
+        }
+    }
+    
+    private void createReQuery() {
+        try {//create "requery" frame
+            dataOut.writeByte(RFIDConstants.REQUERY);
+            RFIDConstants.setBucketSize(RFIDConstants.getBucketSize() + 1);
+            Integer bucketSize = RFIDConstants.getBucketSize();
+            dataOut.writeByte(bucketSize.byteValue());
+            
+            dataOut.flush();
+            requery = bytesOut.toByteArray();
+            bytesOut.reset();
+            
+            dataOut.close();
+            bytesOut.close();
+            System.out.println("ReQuery byte array: ");
+            for (byte b : query) {
+                System.out.print(b);
+            }
+            System.out.print("\n");
+        } catch (Exception e) {
+            System.out.println("Error creating REQUERY.");
+        }
+    }
+	
+    //This controls the behavoir of the Reader.
 	//The inventory method should run
 	//until the reader determines that it is unlikely
 	//any other tags are uninventored, then return

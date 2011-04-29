@@ -14,11 +14,16 @@ public class RFIDTag {
 
 	//64 bit tag identifier
 	private byte[] tagEPC;
-    //16 bit random preId message
+    //1 bit preId message
     private byte[] preId;
-
+    //will send preId during this slot
+    private int slot;
+    //keeps track of num of rq's from reader.
+    private int numRequery;
+    
 	//Insert other needed state here
 	private boolean beenInventoried;
+    private boolean sendPermitted;
 	private boolean sentEPC;
 
 	public RFIDTag() {
@@ -26,11 +31,13 @@ public class RFIDTag {
 		tagEPC = new byte[8];
 		generator.nextBytes(tagEPC);
         
-        //generate the pre-Id
-        preId = new byte[2];
-        generator.nextBytes(preId);
+        //set the pre-Id
+        preId = new byte[1];
+        preId[0] = tagEpC[0]; //might as well give a sneak preview
 
+        numRequery = 0;
 		beenInventoried = false;
+        sendPermitted = false;
 		sentEPC = false;
 	}
 
@@ -77,10 +84,20 @@ public class RFIDTag {
                     //we've been inventoried, don't respond anymore.
                     beenInventoried = true;
                 } else if(flag == RFIDConstants.QUERY && !beenInventoried){
-                    byte bucketSizeByte = datain.readByte();
+                    numRequery = 0;
+                    Byte bucketSizeByte = dataIn.readByte();
                     int bucketSize = bucketSizeByte.intValue();
                     System.out.println("Reading bucket size byte: " + bucketSize);
-                    return tagEPC;
+                    slot = generator.nextInt((int) Math.pow(2.0, (double) bucketSize));
+                    System.out.println("Picked slot number: " + slot);
+                } else if (flag == RFIDConstants.REQUERY && !beenInventoried && sendPermitted){
+                    //untested
+                    numRequery++;
+                    if (numRequery == slot)
+                        return preId;
+                } else if (flag == RFIDConstants.ACK && !sentEPC) {
+                    //ok to send 
+                    sendPermitted = true;
                 }
             } catch (Exception e) {
 				System.out.println("Error during read in Tag");
