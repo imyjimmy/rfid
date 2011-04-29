@@ -12,127 +12,170 @@ import java.util.*;
 import java.io.*;
 
 public class RFIDReader {
-
+  
 	private List<byte[]> currentInventory;
 	private RFIDChannel channel;
-    private static final int BUCKET_SIZE = 4;
-    
-    private ByteArrayOutputStream bytesOut;
-    private DataOutputStream dataOut;
-
+  private static final int BUCKET_SIZE = 4;
+  
+  //Data structures for keeping track of its epc id
+  //private LinkedList<Byte>
+  
 	//frames used for the protocol
 	byte[] ack;
 	byte[] query;
-    byte[] requery;
-
+  byte[] requery;
+  
 	public RFIDReader(RFIDChannel chan) {
 		currentInventory = new ArrayList<byte[]>();
 		channel = chan;
-
+    
 		//Create needed output frames that don't change.
 		//*Note: You may choose whether or not to use
 		//Output/Input streams in your implementation.
 		//They are offered here as one convenient option
 		//for encoding/decoding a byte array.
-		bytesOut = new ByteArrayOutputStream();
-		dataOut = new DataOutputStream(bytesOut);
-        RFIDConstants.setBucketSize(BUCKET_SIZE);
-        createAck();
-        createQuery();
+		    
+    RFIDConstants.setBucketSize(BUCKET_SIZE);
+    createAck();
+    createQuery();
+    createRequery();
 	}
-
-    private void createAck() {
-        try{
-            //create "ack" frame
-            dataOut.writeByte(RFIDConstants.ACK);
-            dataOut.flush();
-            ack = bytesOut.toByteArray();
-            bytesOut.reset();
-        } catch (Exception e){
-            System.out.println("Error in creation of ACK");
-        }
+  
+  private void createAck() {
+    try{
+      //create "ack" frame
+      ByteArrayOutputStream bytesOut = new ByteArrayOutputStream();
+      DataOutputStream dataOut = new DataOutputStream(bytesOut);
+      
+      dataOut.writeByte(RFIDConstants.ACK);
+      dataOut.flush();
+      ack = bytesOut.toByteArray();
+      bytesOut.reset();
+      dataOut.close();
+      bytesOut.close();
+    } catch (Exception e){
+      System.out.println("Error in creation of ACK");
     }
-    
-    private void createQuery() {
-        try {
-            //create "query" frame
-            dataOut.writeByte(RFIDConstants.QUERY); 
-            Integer bucketSize = RFIDConstants.getBucketSize();
-            dataOut.writeByte(bucketSize.byteValue());
-            
-            dataOut.flush();
-            query = bytesOut.toByteArray();
-            bytesOut.reset();
-            
-            dataOut.close();
-            bytesOut.close();
-            System.out.println("Query byte array: ");
-            for (byte b : query) {
-                System.out.print(b);
-            }
-            System.out.print("\n");
-        } catch (Exception e) {
-            System.out.println("Error creating QUERY.");
-        }
+  }
+  
+  private void createTagIDAck(byte[] toAppend) {
+    try {
+      ByteArrayOutputStream bytesOut = new ByteArrayOutputStream();
+      DataOutputStream dataOut = new DataOutputStream(bytesOut);
+      
+      dataOut.writeByte(RFIDConstants.ACK);
+      for (byte b : toAppend)
+        dataOut.writeByte(b);
+      
+      dataOut.flush();
+      ack = bytesOut.toByteArray();
+      bytesOut.reset();
+      dataOut.close();
+      bytesOut.close();
+    } catch (Exception e) {
+      System.out.println("error creating tag id ACK");
     }
-    
-    private void createReQuery() {
-        try {//create "requery" frame
-            dataOut.writeByte(RFIDConstants.REQUERY);
-            RFIDConstants.setBucketSize(RFIDConstants.getBucketSize() + 1);
-            Integer bucketSize = RFIDConstants.getBucketSize();
-            dataOut.writeByte(bucketSize.byteValue());
-            
-            dataOut.flush();
-            requery = bytesOut.toByteArray();
-            bytesOut.reset();
-            
-            dataOut.close();
-            bytesOut.close();
-            System.out.println("ReQuery byte array: ");
-            for (byte b : query) {
-                System.out.print(b);
-            }
-            System.out.print("\n");
-        } catch (Exception e) {
-            System.out.println("Error creating REQUERY.");
-        }
+  }
+  
+  private void createQuery() {
+    try {
+      //create "query" frame
+      ByteArrayOutputStream bytesOut = new ByteArrayOutputStream();
+      DataOutputStream dataOut = new DataOutputStream(bytesOut);
+      
+      dataOut.writeByte(RFIDConstants.QUERY); 
+      Integer bucketSize = RFIDConstants.getBucketSize();
+      dataOut.writeByte(bucketSize.byteValue());
+      
+      dataOut.flush();
+      query = bytesOut.toByteArray();
+      bytesOut.reset();
+      
+      dataOut.close();
+      bytesOut.close();
+      //System.out.println("Query byte array: ");
+      //for (byte b : query) {
+      //  System.out.print(b);
+      //}
+      //System.out.print("\n");
+    } catch (Exception e) {
+      System.out.println("Error creating QUERY.");
     }
+  }
+  
+  private void createRequery() {
+    try {//create "requery" frame
+      ByteArrayOutputStream bytesOut = new ByteArrayOutputStream();
+      DataOutputStream dataOut = new DataOutputStream(bytesOut);
+      
+      dataOut.writeByte(RFIDConstants.REQUERY);
+      //RFIDConstants.setBucketSize(RFIDConstants.getBucketSize() + 1);
+      Integer bucketSize = RFIDConstants.getBucketSize();
+      dataOut.writeByte(bucketSize.byteValue());
+      
+      dataOut.flush();
+      requery = bytesOut.toByteArray();
+      bytesOut.reset();
+      
+      dataOut.close();
+      bytesOut.close();
+      //System.out.println("ReQuery byte array: ");
+      //for (byte b : requery) {
+      //  System.out.print(b);
+      //}
+      //System.out.print("\n");
+    } catch (Exception e) {
+      System.out.println("Error creating REQUERY.");
+    }
+  }
 	
-    //This controls the behavoir of the Reader.
+  //This controls the behavoir of the Reader.
 	//The inventory method should run
 	//until the reader determines that it is unlikely
 	//any other tags are uninventored, then return
 	//the currentInventory.
 	public List<byte[]> inventory() {
 		/*
-			Currently, the strawman protocol is implemented.
-			Replace with your own protocol.
-		*/
+     Currently, the strawman protocol is implemented.
+     Replace with your own protocol.
+     */
 		int count = 0; //count of consecutive no-replies
-
+    
 		byte[] response;
-
-		//Strawman protocol continues until
-		//32 consecutive no-replies.
-		while(count < 32) {
-			response = channel.sendMessage(query);
-
-			if(response == null){
-				count++;
-			} else if(Arrays.equals(response, RFIDChannel.GARBLE)){
-				count = 0;
-			} else {
-				if(!currentInventory.contains(response)){
+    
+		response = channel.sendMessage(query);
+    
+    for (int i=0; i<(int) Math.pow(2.0, (double) RFIDConstants.getBucketSize()); i++) {
+      //System.out.println("Sending a requery up to " + (int) Math.pow(2.0, (double) RFIDConstants.getBucketSize()) + " times.");
+      response = channel.sendMessage(requery);
+      if (response != null) { // unpack the message
+        response = readMessage(response);
+        if(response != null && !currentInventory.contains(response)){
 					currentInventory.add(response);
 				}
-				channel.sendMessage(ack);
-				count = 0;
-
-			}
-		}
-
-		return currentInventory;
-	}
+      }
+    }
+    
+    return currentInventory;
+  }
+  
+  public byte[] readMessage(byte[] response) {
+    byte[] toReturn;
+    if (response[0] == RFIDConstants.PREID) {
+      System.out.println("Reader found a preId response: " + response);
+      createTagIDAck(response);
+      toReturn = channel.sendMessage(ack);
+      System.out.println("Got the tag id:\n");
+      for (byte b : toReturn) 
+        System.out.print(b);
+      System.out.println();
+      
+      return toReturn;
+    } else if (Arrays.equals(response, RFIDChannel.GARBLE)) {
+      //yikes;
+      return null;
+    } 
+    return null;
+  }
 }
 
